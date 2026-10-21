@@ -1,25 +1,56 @@
+import { isGecko, isGecko120OrNewer, isSafariWebKit, isWebKit, isWebKit616OrNewer } from '../utils/browser'
+
 export interface CanvasFingerprint {
   winding: boolean
   geometry: string
   text: string
 }
 
-// https://www.browserleaks.com/canvas#how-does-it-work
+export const enum ImageStatus {
+  Unsupported = 'unsupported',
+  Skipped = 'skipped',
+  Unstable = 'unstable',
+}
+
+/**
+ * A version of the entropy source with stabilization to make it suitable for static fingerprinting.
+ *
+ * Canvas image is noised in private mode of Safari 17, so image rendering is skipped in Safari 17.
+ * Firefox 120+ randomizes canvas data in private browsing and strict ETP mode,
+ * so image rendering is skipped in Firefox 120+.
+ *
+ * @see https://www.browserleaks.com/canvas#how-does-it-work
+ * @see https://bugzilla.mozilla.org/show_bug.cgi?id=1816189 Firefox canvas randomization
+ */
 export default function getCanvasFingerprint(): CanvasFingerprint {
+  return getUnstableCanvasFingerprint(doesBrowserPerformAntiFingerprinting())
+}
+
+/**
+ * A version of the entropy source without stabilization.
+ *
+ * Warning for package users:
+ * This function is out of Semantic Versioning, i.e. can change unexpectedly. Usage is at your own risk.
+ */
+export function getUnstableCanvasFingerprint(skipImages?: boolean): CanvasFingerprint {
+  let winding = false
+  let geometry: string
+  let text: string
+
   const [canvas, context] = makeCanvasContext()
   if (!isSupported(canvas, context)) {
-    return { winding: false, geometry: '', text: '' }
+    geometry = text = ImageStatus.Unsupported
+  } else {
+    winding = doesSupportWinding(context)
+
+    if (skipImages) {
+      geometry = text = ImageStatus.Skipped
+    } else {
+      ;[geometry, text] = renderImages(canvas, context)
+    }
   }
 
-  return {
-    winding: doesSupportWinding(context),
-    geometry: makeGeometryImage(canvas, context),
-    // Text is unstable:
-    // https://github.com/fingerprintjs/fingerprintjs/issues/583
-    // https://github.com/fingerprintjs/fingerprintjs/issues/103
-    // Therefore it's extracted into a separate image.
-    text: makeTextImage(canvas, context),
-  }
+  return { winding, geometry, text }
 }
 
 function makeCanvasContext() {
@@ -33,7 +64,6 @@ function isSupported(
   canvas: HTMLCanvasElement,
   context?: CanvasRenderingContext2D | null,
 ): context is CanvasRenderingContext2D {
-  // TODO: look into: https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toBlob
   return !!(context && canvas.toDataURL)
 }
 
@@ -45,7 +75,27 @@ function doesSupportWinding(context: CanvasRenderingContext2D) {
   return !context.isPointInPath(5, 5, 'evenodd')
 }
 
-function makeTextImage(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) {
+function renderImages(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D): [geometry: string, text: string] {
+  renderTextImage(canvas, context)
+  const textImage1 = canvasToString(canvas)
+  const textImage2 = canvasToString(canvas) // It's slightly faster to double-encode the text image
+
+  // Some browsers add a noise to the canvas: https://github.com/fingerprintjs/fingerprintjs/issues/791
+  // The canvas is excluded from the fingerprint in this case
+  if (textImage1 !== textImage2) {
+    return [ImageStatus.Unstable, ImageStatus.Unstable]
+  }
+
+  // Text is unstable:
+  // https://github.com/fingerprintjs/fingerprintjs/issues/583
+  // https://github.com/fingerprintjs/fingerprintjs/issues/103
+  // Therefore it's extracted into a separate image.
+  renderGeometryImage(canvas, context)
+  const geometryImage = canvasToString(canvas)
+  return [geometryImage, textImage1]
+}
+
+function renderTextImage(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) {
   // Resizing the canvas cleans it
   canvas.width = 240
   canvas.height = 60
@@ -69,11 +119,9 @@ function makeTextImage(canvas: HTMLCanvasElement, context: CanvasRenderingContex
   context.fillStyle = 'rgba(102, 204, 0, 0.2)'
   context.font = '18pt Arial'
   context.fillText(printedText, 4, 45)
-
-  return save(canvas)
 }
 
-function makeGeometryImage(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) {
+function renderGeometryImage(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D) {
   // Resizing the canvas cleans it
   canvas.width = 122
   canvas.height = 110
@@ -95,17 +143,28 @@ function makeGeometryImage(canvas: HTMLCanvasElement, context: CanvasRenderingCo
   }
 
   // Canvas winding
-  // http://blogs.adobe.com/webplatform/2013/01/30/winding-rules-in-canvas/
+  // https://web.archive.org/web/20130913061632/http://blogs.adobe.com/webplatform/2013/01/30/winding-rules-in-canvas/
   // http://jsfiddle.net/NDYV8/19/
   context.fillStyle = '#f9c'
   context.arc(60, 60, 60, 0, Math.PI * 2, true)
   context.arc(60, 60, 20, 0, Math.PI * 2, true)
   context.fill('evenodd')
-
-  return save(canvas)
 }
 
-function save(canvas: HTMLCanvasElement) {
-  // TODO: look into: https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toBlob
+function canvasToString(canvas: HTMLCanvasElement) {
   return canvas.toDataURL()
+}
+
+/**
+ * Checks if the current browser is known for applying anti-fingerprinting measures in all or some critical modes:
+ * - Safari 17+: noises canvas image in private mode
+ * - Firefox 120+: randomizes canvas data in private browsing and strict ETP mode (CanvasRandomization)
+ *
+ * @see https://bugzilla.mozilla.org/show_bug.cgi?id=1816189 Firefox canvas randomization
+ */
+function doesBrowserPerformAntiFingerprinting() {
+  const isSafari17OrAbove = isWebKit() && isWebKit616OrNewer() && isSafariWebKit()
+  const isFirefox120OrAbove = isGecko() && isGecko120OrNewer()
+
+  return isSafari17OrAbove || isFirefox120OrAbove
 }

@@ -1,6 +1,8 @@
+import { spawn, SpawnOptions } from 'child_process'
 import * as fs from 'fs'
 import * as readline from 'readline'
 import { URL } from 'url'
+
 import got from 'got'
 
 export async function eachLineInFile(
@@ -82,11 +84,27 @@ export async function fetchFilter(
         // We expect no recursion in actual filters
         subFilterLines = await fetchFilter(subFilterURL, abort, true)
       } catch (error) {
-        throw new Error(`Failed to fetch a sub-filter (${subFilterURL}): ${error.message}`)
+        throw new Error(`Failed to fetch a sub-filter (${subFilterURL}): ${error}`)
       }
       filterLines.push(...subFilterLines)
     }),
   )
 
   return filterLines
+}
+
+export function runCommand(command: string, options: SpawnOptions = {}): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn(command, [], { shell: true, ...options })
+    child.stdout?.pipe(process.stdout)
+    child.stderr?.pipe(process.stderr)
+    child.on('error', reject)
+    child.on('close', (code) => {
+      if (code) {
+        reject(new Error(`The ${command} command has exited with code ${code}`))
+      } else {
+        resolve()
+      }
+    })
+  })
 }

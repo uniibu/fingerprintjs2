@@ -1,8 +1,8 @@
 import { version } from '../package.json'
-import { withMockProperties } from '../tests/utils'
+
 import { load as loadAgent } from './agent'
 import { sources } from './sources'
-import { hasScreenFrameBackup, resetScreenFrameWatch } from './sources/screen_frame'
+import { isSourceLoaded } from './sources/cpu_class'
 import { wait } from './utils/async'
 
 describe('Agent', () => {
@@ -19,41 +19,64 @@ describe('Agent', () => {
     expect(expectedComponents.length).toBeGreaterThan(10) // To check the test itself
     expect(Object.keys(result.components).sort()).toEqual(expectedComponents)
     for (const componentName of expectedComponents) {
-      expect(result.components[componentName].error)
+      const component = result.components[componentName]
+      expect('error' in component ? component.error : undefined)
         .withContext(`Unexpected error in the "${componentName}" component`)
         .toBeUndefined()
     }
   })
 
   it('loads entropy sources when created', async () => {
-    // Checking whether agent loads entropy sources when created by checking whether the screen frame is watched
-    resetScreenFrameWatch()
+    isSourceLoaded.x = false
+    const agent = await loadAgent({ delayFallback: 0 })
 
-    await withMockProperties(
-      screen,
-      {
-        width: { get: () => 1200 },
-        height: { get: () => 800 },
-        availWidth: { get: () => 1100 },
-        availHeight: { get: () => 760 },
-        availLeft: { get: () => 100 },
-        availTop: { get: () => 0 },
-      },
-      async () => {
-        const agent = await loadAgent({ delayFallback: 0 })
-        let areSourcesLoaded = false
+    // The entropy sources may be not loaded yet at this moment of time, so we need to wait
+    for (let i = 0; i < 20 && !isSourceLoaded.x; ++i) {
+      await wait(50)
+    }
 
-        // The screen frame source may be not loaded yet at this moment of time, so we need to wait
-        for (let i = 0; i < 20 && !areSourcesLoaded; ++i) {
-          if (hasScreenFrameBackup()) {
-            areSourcesLoaded = true
-          }
-          await wait(50)
-        }
+    expect(isSourceLoaded.x).withContext('Entropy sources are not loaded').toBeTrue()
+    await agent.get() // To wait until the background processes complete
+  })
 
-        expect(areSourcesLoaded).withContext('Entropy sources are not loaded').toBeTrue()
-        await agent.get() // To wait until the background processes complete
-      },
-    )
+  describe('monitoring option', () => {
+    let mockXHR: {
+      open: jasmine.Spy
+      send: jasmine.Spy
+    }
+    let xmlHttpRequestSpy: jasmine.Spy
+
+    beforeEach(() => {
+      mockXHR = {
+        open: jasmine.createSpy('open'),
+        send: jasmine.createSpy('send'),
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      xmlHttpRequestSpy = spyOn(window as any, 'XMLHttpRequest').and.returnValue(mockXHR)
+    })
+
+    it('respects the monitoring option when set to false', async () => {
+      spyOn(Math, 'random').and.returnValue(0)
+      const agent = await loadAgent({ delayFallback: 0, monitoring: false })
+      await agent.get()
+
+      expect(xmlHttpRequestSpy).not.toHaveBeenCalled()
+      expect(mockXHR.open).not.toHaveBeenCalled()
+      expect(mockXHR.send).not.toHaveBeenCalled()
+    })
+
+    it('enables monitoring by default and when explicitly set to true', async () => {
+      spyOn(Math, 'random').and.returnValue(0)
+      const agent = await loadAgent({ delayFallback: 0 })
+      await agent.get()
+
+      expect(xmlHttpRequestSpy).toHaveBeenCalled()
+      expect(mockXHR.open).toHaveBeenCalledWith(
+        'get',
+        jasmine.stringMatching(/fingerprintjs\/v.*\/npm-monitoring/),
+        true,
+      )
+      expect(mockXHR.send).toHaveBeenCalled()
+    })
   })
 })

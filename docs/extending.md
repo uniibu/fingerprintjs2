@@ -14,7 +14,7 @@ const result = await fp.get()
 // The `languages` and `audio` components will be excluded
 const { languages, audio, ...components } = result.components
 
-// Optinally, you can make a visitor identifier from your custom list of components
+// Optionally, you can make a visitor identifier from your custom list of components
 const visitorId = FingerprintJS.hashComponents(components)
 ```
 
@@ -34,7 +34,7 @@ const components = {
   bar: { value: await getBarComponent() },
 }
 
-// Optinally, you can make a visitor identifier from your custom list of components
+// Optionally, you can make a visitor identifier from your custom list of components
 const visitorId = FingerprintJS.hashComponents(components)
 ```
 
@@ -55,7 +55,7 @@ const extendedComponents = {
   bar: { value: await getBarComponent() },
 }
 
-// Optinally, you can make a visitor identifier from your custom list of components
+// Optionally, you can make a visitor identifier from your custom list of components
 const visitorId = FingerprintJS.hashComponents(extendedComponents)
 ```
 
@@ -71,7 +71,7 @@ debugOutput.textContent = FingerprintJS.componentsToDebugString(components)
 ## Canvas stabilization
 
 The [canvas entropy source](https://github.com/fingerprintjs/fingerprintjs/blob/master/src/sources/canvas.ts) consists of 2 images.
-The first (with a geometry only) is move stable, the second (with a text) gives more entropy.
+The first (with a geometry only) is more stable, the second (with a text) gives more entropy.
 Agent uses both the images by default.
 If you need more stability, you can exclude the text image.
 Example:
@@ -81,19 +81,10 @@ Example:
 
 let { components } = await fp.get()
 
-if (components.canvas.value) {
-  components = {
-    ...components,
-    canvas: {
-      ...components.canvas,
-      value: {
-        ...components.canvas.value,
-        text: '',
-      },
-    },
-  }
+if ('value' in components.canvas) {
+  components.canvas.value.text = ''
 }
 
-// Optinally, you can make a visitor identifier from your custom list of components
+// Optionally, you can make a visitor identifier from your custom list of components
 const visitorId = FingerprintJS.hashComponents(components)
 ```

@@ -2,14 +2,20 @@
  * See docs/content_blockers.md
  */
 
-import * as path from 'path'
 import { promises as fsAsync } from 'fs'
+import * as path from 'path'
+
 import * as rollup from 'rollup'
+
+import rollupConfig from '../../rollup.config'
+
 import filterConfig, { FilterList } from './filters'
 import { fetchFilter } from './utils'
 
 const inputScript = path.join(__dirname, 'selectors_tester.ts')
 const outputFile = path.join(__dirname, 'selectors_tester.html')
+
+run()
 
 async function run() {
   const uniqueSelectors = await fetchUniqueSelectors(filterConfig)
@@ -34,7 +40,7 @@ async function fetchUniqueSelectors(filterConfig: FilterList) {
   printProgress()
 
   let abort: (() => void) | undefined
-  const abortPromise = new Promise((resolve) => (abort = resolve))
+  const abortPromise = new Promise<void>((resolve) => (abort = resolve))
   try {
     await Promise.all(
       filters.map(async (filter) => {
@@ -42,7 +48,7 @@ async function fetchUniqueSelectors(filterConfig: FilterList) {
         try {
           filterLines = await fetchFilter(filter.file, abortPromise)
         } catch (error) {
-          throw new Error(`Failed to fetch filter "${filter.title}" (${filter.file}): ${error.message}`)
+          throw new Error(`Failed to fetch filter "${filter.title}" (${filter.file}): ${error}`)
         }
         for (const line of filterLines) {
           const selector = getSelectorFromFilterRule(line)
@@ -104,20 +110,13 @@ async function makeTesterHtml(selectors: { forEach: (callback: (selector: string
 }
 
 async function getJsToDetectBlockedSelectors(selectors: readonly string[]) {
-  // The first configuration from rollup.config.js is supposed to make a JS file with dependencies included
+  // The first configuration from rollup.config.ts is supposed to make a JS file with dependencies included
   const bundle = await rollup.rollup({
     input: inputScript,
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    plugins: require('../../rollup.config')[0].plugins,
+    plugins: rollupConfig[0].plugins,
   })
   const { output } = await bundle.generate({
     format: 'iife',
   })
   return output[0].code.replace(/\[\s*\/\*\s*selectors\s*\*\/\s*]/g, JSON.stringify(selectors))
 }
-
-run().catch((error) => {
-  // eslint-disable-next-line no-console
-  console.error(error)
-  process.exitCode = 1
-})

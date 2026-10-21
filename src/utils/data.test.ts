@@ -1,4 +1,4 @@
-import { areSetsEqual, maxInIterator, parseSimpleCssSelector, round, toFloat, toInt } from './data'
+import { areSetsEqual, getUTF8Bytes, maxInIterator, parseSimpleCssSelector, round, toFloat, toInt } from './data'
 
 describe('Data utilities', () => {
   it('converts to integer', () => {
@@ -62,7 +62,7 @@ describe('Data utilities', () => {
 
   it('checks whether sets are equal', () => {
     if (typeof Set === 'undefined') {
-      pending("The browser doesn't support Set")
+      return
     }
 
     const makeSet = (...values: unknown[]): Set<unknown> => {
@@ -92,12 +92,21 @@ describe('Data utilities', () => {
       yield { val: 8 }
       yield { val: 7 }
     }
+
     function* emptyGenerator() {
       // Nothing
     }
+
     expect(maxInIterator(generator(), (item) => item.val)).toEqual({ val: 8 })
     expect(maxInIterator(generator(), (item) => -item.val)).toEqual({ val: 1 })
     expect(maxInIterator(generator(), (item) => (item.val % 2 === 0 ? item.val : item.val * 2))).toEqual({ val: 7 })
     expect(maxInIterator(emptyGenerator(), () => Math.random())).toBeUndefined()
+  })
+
+  it('converts string to UTF8 bytes', () => {
+    expect(getUTF8Bytes('Hello, world!')).toEqual(
+      new Uint8Array([72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33]),
+    )
+    expect(getUTF8Bytes('fё%?=🤔')).toEqual(new Uint8Array([102, 209, 145, 37, 63, 61, 240, 159, 164, 148]))
   })
 })

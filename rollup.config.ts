@@ -1,42 +1,45 @@
-const path = require('path')
-const jsonPlugin = require('@rollup/plugin-json')
-const nodeResolvePlugin = require('@rollup/plugin-node-resolve').nodeResolve
-const typescriptPlugin = require('@rollup/plugin-typescript')
-const terserPlugin = require('rollup-plugin-terser').terser
-const dtsPlugin = require('rollup-plugin-dts').default
-const licensePlugin = require('rollup-plugin-license')
-const { dependencies } = require('./package.json')
+import * as fs from 'fs'
+
+import jsonPlugin from '@rollup/plugin-json'
+import nodeResolvePlugin from '@rollup/plugin-node-resolve'
+import terserPlugin from '@rollup/plugin-terser'
+import typescriptPlugin from '@rollup/plugin-typescript'
+import type { RollupOptions } from 'rollup'
+import dtsPlugin from 'rollup-plugin-dts'
+import licensePlugin from 'rollup-plugin-license'
+
+import terserConfig from './terser.config'
+
+const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+const dependencies = pkg.dependencies || {}
 
 const outputDirectory = 'dist'
 
-const commonBanner = licensePlugin({
-  banner: {
-    content: {
-      file: path.join(__dirname, 'resources', 'license_banner.txt'),
-    },
-  },
-})
-
 const commonInput = {
-  input: './src/index.ts',
-  plugins: [
-    nodeResolvePlugin(),
-    jsonPlugin(),
-    typescriptPlugin({
-      declaration: false,
-    }),
-    commonBanner,
-  ],
+  input: 'src/index.ts',
+  plugins: [nodeResolvePlugin(), jsonPlugin(), typescriptPlugin()],
 }
 
 const commonOutput = {
   name: 'FingerprintJS',
-  exports: 'named',
+  exports: 'named' as const,
+  plugins: [
+    licensePlugin({
+      banner: {
+        content: {
+          file: 'resources/license_banner.txt',
+        },
+        data: {
+          license: fs.readFileSync('LICENSE', 'utf8').trim(),
+        },
+      },
+    }),
+  ],
 }
 
-const commonTerser = terserPlugin(require('./terser.config.js'))
+const commonTerser = terserPlugin(terserConfig)
 
-module.exports = [
+const config: RollupOptions[] = [
   // Browser bundles. They have all the dependencies included for convenience.
   {
     ...commonInput,
@@ -51,7 +54,7 @@ module.exports = [
         ...commonOutput,
         file: `${outputDirectory}/fp.min.js`,
         format: 'iife',
-        plugins: [commonTerser],
+        plugins: [commonTerser, ...commonOutput.plugins],
       },
 
       // UMD for users who use Require.js or Electron and want to leverage them
@@ -64,7 +67,7 @@ module.exports = [
         ...commonOutput,
         file: `${outputDirectory}/fp.umd.min.js`,
         format: 'umd',
-        plugins: [commonTerser],
+        plugins: [commonTerser, ...commonOutput.plugins],
       },
     ],
   },
@@ -85,7 +88,7 @@ module.exports = [
       {
         ...commonOutput,
         file: `${outputDirectory}/fp.esm.js`,
-        format: 'es',
+        format: 'esm',
       },
     ],
   },
@@ -93,10 +96,13 @@ module.exports = [
   // TypeScript definition
   {
     ...commonInput,
-    plugins: [dtsPlugin(), commonBanner],
+    plugins: [dtsPlugin()],
     output: {
+      ...commonOutput,
       file: `${outputDirectory}/fp.d.ts`,
-      format: 'es',
+      format: 'esm',
     },
   },
 ]
+
+export default config

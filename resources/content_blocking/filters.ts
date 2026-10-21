@@ -16,7 +16,7 @@ const filters: FilterList = {
    */
   adGuardBase: {
     title: 'AdGuard Base',
-    file: 'https://raw.githubusercontent.com/AdguardTeam/FiltersRegistry/master/filters/filter_2_English/filter.txt',
+    file: 'https://raw.githubusercontent.com/AdguardTeam/FiltersRegistry/master/filters/filter_2_Base/filter.txt',
   },
   adGuardMobile: {
     title: 'AdGuard Mobile Ads',
@@ -32,8 +32,7 @@ const filters: FilterList = {
   },
   adGuardAnnoyances: {
     title: 'AdGuard Annoyances',
-    file:
-      'https://raw.githubusercontent.com/AdguardTeam/FiltersRegistry/master/filters/filter_14_Annoyances/filter.txt',
+    file: 'https://raw.githubusercontent.com/AdguardTeam/FiltersRegistry/master/filters/filter_14_Annoyances/filter.txt',
   },
   adGuardRussian: {
     title: 'AdGuard Russian',
@@ -184,7 +183,7 @@ const filters: FilterList = {
   },
   ruAd: {
     title: 'RU AdList',
-    note: "Sometimes doesn't work in AdGuard for some reason",
+    note: 'Not in the default AdGuard list, add manually',
     file: 'https://easylist-downloads.adblockplus.org/advblock.txt',
   },
   icelandicAbp: {
@@ -197,6 +196,7 @@ const filters: FilterList = {
   },
   thaiAds: {
     title: 'Thai Ads Filters',
+    note: 'Renamed to "EasyList Thailand"',
     file: 'https://adblock-thai.github.io/thai-ads-filter/subscription.txt',
   },
   hungarian: {
@@ -221,12 +221,11 @@ const filters: FilterList = {
   },
   listKr: {
     title: 'List-KR',
-    file: 'https://raw.githubusercontent.com/List-KR/List-KR/master/filter.txt',
+    file: 'https://raw.githubusercontent.com/List-KR/List-KR/master/filter-uBlockOrigin.txt',
   },
   adBlockFinland: {
     title: 'Adblock List for Finland',
-    file:
-      'https://raw.githubusercontent.com/finnish-easylist-addition/finnish-easylist-addition/master/Finland_adb.txt',
+    file: 'https://raw.githubusercontent.com/finnish-easylist-addition/finnish-easylist-addition/master/Finland_adb.txt',
   },
   frellwitSwedish: {
     title: "Frellwit's Swedish Filter",

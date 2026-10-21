@@ -5,14 +5,14 @@ about: Bugs not related to unexpectedly changing fingerprints
 ---
 
 <!--
-BUG REPORTS NOT USING THE TEMPLATE ARE SUBJECT TO BEING CLOSED WITHOUT COMMMENT.
+BUG REPORTS NOT USING THE TEMPLATE ARE SUBJECT TO BEING CLOSED WITHOUT COMMENT.
 -->
 
 ### Scenario
 
 - What's the scenario, what happens and what did you expect to happen?
 - What device and browser are you using?
-- What version of fingerprintjs are you using? (Bug reports not applicable to fingerprintjs master are subject to be closed without comment.)
+- What version of FingerprintJS are you using? (Bug reports not applicable to FingerprintJS master are subject to be closed without comment.)
 
 ### Fingerprint data
 

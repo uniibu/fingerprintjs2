@@ -1,4 +1,3 @@
-import 'promise-polyfill/src/polyfill'
 import * as FingerprintJS from '../src'
 import { errorToObject } from '../src/utils/misc'
 
@@ -29,8 +28,8 @@ async function startPlayground() {
       content: String(confidence.score),
       comment: confidence.comment && {
         html: confidence.comment.replace(
-          /(upgrade\s+to\s+)?pro(\s+version)?(:\s+(https?:\/\/\S+))?/gi,
-          '<a href="$4" target="_blank">$&</a>',
+          /(upgrade\s+to\s+pro\s+:\s+)?(\s+version)?((https?:\/\/[\w\\.\\/]+)?(\?\S+))?/gi,
+          '<a href="$3" target="_blank">$1$4</a>',
         ),
       },
       size: 'big',
@@ -52,7 +51,7 @@ ${FingerprintJS.componentsToDebugString(components)}
 \`\`\``)
   } catch (error) {
     const totalTime = Date.now() - startTime
-    const errorData = errorToObject(error)
+    const errorData = error instanceof Error ? errorToObject(error) : error
     output.innerHTML = ''
     addOutputSection({ output, header: 'Unexpected error:', content: JSON.stringify(errorData, null, 2) })
     addOutputSection({ output, header: 'Time passed before the error:', content: `${totalTime}ms`, size: 'big' })

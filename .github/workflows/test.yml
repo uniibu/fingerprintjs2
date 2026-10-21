@@ -15,12 +15,13 @@ jobs:
     name: Lint and test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    concurrency: browserstack
     steps:
       # TypeScript types are checked during building and testing so there is no need for a separate step for the check
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: node_modules
           key: nodemodules-${{ hashFiles('yarn.lock') }}
@@ -32,12 +33,13 @@ jobs:
       - name: Build
         run: yarn build
       - name: Check the distributive TypeScript declarations
-        run: yarn test:dts
+        run: yarn check:dts
         # Helps to prevent https://github.com/fingerprintjs/fingerprintjs/issues/602
       - name: Check the ability to work with server side rendering
-        run: yarn test:ssr
+        run: yarn check:ssr
       - name: Test on BrowserStack
+        if: env.BROWSERSTACK_USERNAME
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-        run: yarn test:browserstack
+        run: yarn test:browserstack --log-level ${{ runner.debug == '1' && 'debug' || 'info' }}

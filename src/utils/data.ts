@@ -115,23 +115,12 @@ export function areSetsEqual(set1: Set<unknown>, set2: Set<unknown>): boolean {
     return false
   }
 
-  if (set1.values) {
-    for (let iter = set1.values(), step = iter.next(); !step.done; step = iter.next()) {
-      if (!set2.has(step.value)) {
-        return false
-      }
+  for (let iter = set1.values(), step = iter.next(); !step.done; step = iter.next()) {
+    if (!set2.has(step.value)) {
+      return false
     }
-    return true
-  } else {
-    // An implementation for browsers that don't support Set iterators
-    let areEqual = true
-    set1.forEach((value) => {
-      if (areEqual && !set2.has(value)) {
-        areEqual = false
-      }
-    })
-    return areEqual
   }
+  return true
 }
 
 export function maxInIterator<T>(iterator: Iterator<T>, getItemScore: (item: T) => number): T | undefined {
@@ -148,4 +137,24 @@ export function maxInIterator<T>(iterator: Iterator<T>, getItemScore: (item: T) 
   }
 
   return maxItem
+}
+
+/**
+ * Converts a string to UTF8 bytes
+ */
+export function getUTF8Bytes(input: string): Uint8Array {
+  // Benchmark: https://jsbench.me/b6klaaxgwq/1
+  // If you want to just count bytes, see solutions at https://jsbench.me/ehklab415e/1
+  const result = new Uint8Array(input.length)
+  for (let i = 0; i < input.length; i++) {
+    // `charCode` is faster than encoding, so we prefer that when it's possible
+    const charCode = input.charCodeAt(i)
+
+    // In case of non-ASCII symbols we use proper encoding
+    if (charCode > 127) {
+      return new TextEncoder().encode(input)
+    }
+    result[i] = charCode
+  }
+  return result
 }

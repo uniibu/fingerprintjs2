@@ -1,4 +1,5 @@
 import { withCSS } from '../../tests/utils'
+
 import getFontPreferences, { presets } from './font_preferences'
 
 describe('Sources', () => {
@@ -22,6 +23,13 @@ describe('Sources', () => {
         const resultAfter = await getFontPreferences()
         expect(resultAfter).toEqual(resultBefore)
       })
+    })
+
+    it('returns stable values', async () => {
+      const first = await getFontPreferences()
+      const second = await getFontPreferences()
+
+      expect(second).toEqual(first)
     })
   })
 })

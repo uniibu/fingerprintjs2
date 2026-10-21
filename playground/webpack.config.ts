@@ -1,8 +1,11 @@
-const HtmlWebpackPlugin = require('html-webpack-plugin')
-const { CleanWebpackPlugin } = require('clean-webpack-plugin')
-const TerserPlugin = require('terser-webpack-plugin')
+import * as HtmlWebpackPlugin from 'html-webpack-plugin'
+import * as TerserPlugin from 'terser-webpack-plugin'
+import { ConfigOptions } from 'webpack-cli'
+import { Configuration as DevServer } from 'webpack-dev-server'
 
-module.exports = (env, { mode = 'development' }) => ({
+import terserConfig from '../terser.config'
+
+const configurationFactory: ConfigOptions = (_env, { mode = 'development' }) => ({
   entry: './index.ts',
   mode,
   resolve: {
@@ -33,22 +36,28 @@ module.exports = (env, { mode = 'development' }) => ({
   optimization: {
     minimizer: [
       new TerserPlugin({
-        terserOptions: require('../terser.config.js'),
+        terserOptions: terserConfig,
       }),
     ],
   },
   devtool: mode === 'development' ? 'inline-source-map' : 'source-map',
   output: {
+    clean: true,
     filename: '[name].js?[contenthash]',
   },
   devServer: {
     host: '0.0.0.0',
-  },
+    allowedHosts: 'all',
+  } satisfies DevServer,
   plugins: [
-    new CleanWebpackPlugin(),
     new HtmlWebpackPlugin({
       template: './index.html',
       title: `FingerprintJS ${mode === 'development' ? 'Playground' : 'Demo'}`,
     }),
   ],
+  // https://stackoverflow.com/a/71739898/1118709
+  // Correct (but not worth effort) solutions: build-time macros, custom JSON loader, Rollup instead of Webpack, riot
+  ignoreWarnings: [/Should not import the named export 'version' .* from default-exporting module/],
 })
+
+export default configurationFactory

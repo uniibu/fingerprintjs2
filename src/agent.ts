@@ -1,10 +1,11 @@
 import { version } from '../package.json'
+
+import getConfidence, { Confidence } from './confidence'
+import loadBuiltinSources, { BuiltinComponents } from './sources'
 import { requestIdleCallbackIfAvailable } from './utils/async'
 import { UnknownComponents } from './utils/entropy_source'
 import { x64hash128 } from './utils/hashing'
 import { errorToObject } from './utils/misc'
-import loadBuiltinSources, { BuiltinComponents } from './sources'
-import getConfidence, { Confidence } from './confidence'
 
 /**
  * Options for Fingerprint class loading
@@ -21,6 +22,11 @@ export interface LoadOptions {
    * Required to ease investigations of problems.
    */
   debug?: boolean
+  /**
+   * Set `false` to disable the unpersonalized AJAX request that the agent sends to collect installation statistics.
+   * It's always disabled in the version published to the FingerprintJS CDN.
+   */
+  monitoring?: boolean
 }
 
 /**
@@ -77,7 +83,7 @@ function componentsToCanonicalString(components: UnknownComponents) {
   let result = ''
   for (const componentKey of Object.keys(components).sort()) {
     const component = components[componentKey]
-    const value = component.error ? 'error' : JSON.stringify(component.value)
+    const value = 'error' in component ? 'error' : JSON.stringify(component.value)
     result += `${result ? '|' : ''}${componentKey.replace(/([:|\\])/g, '\\$1')}:${value}`
   }
   return result
@@ -174,10 +180,33 @@ components: ${componentsToDebugString(components)}
 }
 
 /**
+ * Sends an unpersonalized AJAX request to collect installation statistics
+ */
+function monitor() {
+  // The FingerprintJS CDN (https://github.com/fingerprintjs/cdn) replaces `window.__fpjs_d_m` with `true`
+  if (window.__fpjs_d_m || Math.random() >= 0.001) {
+    return
+  }
+  try {
+    const request = new XMLHttpRequest()
+    request.open('get', `https://m1.openfpcdn.io/fingerprintjs/v${version}/npm-monitoring`, true)
+    request.send()
+  } catch (error) {
+    // console.error is ok here because it's an unexpected error handler
+    // eslint-disable-next-line no-console
+    console.error(error)
+  }
+}
+
+/**
  * Builds an instance of Agent and waits a delay required for a proper operation.
  */
-export async function load({ delayFallback, debug }: Readonly<LoadOptions> = {}): Promise<Agent> {
+export async function load(options: Readonly<LoadOptions> = {}): Promise<Agent> {
+  const { delayFallback, debug, monitoring = true } = options
+  if (monitoring) {
+    monitor()
+  }
   await prepareForSources(delayFallback)
-  const getComponents = loadBuiltinSources({ debug })
+  const getComponents = loadBuiltinSources({ cache: {}, debug })
   return makeAgent(getComponents, debug)
 }

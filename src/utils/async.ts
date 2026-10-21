@@ -4,6 +4,21 @@ export function wait<T = void>(durationMs: number, resolveWith?: T): Promise<T> 
   return new Promise((resolve) => setTimeout(resolve, durationMs, resolveWith))
 }
 
+/**
+ * Allows asynchronous actions and microtasks to happen.
+ */
+function releaseEventLoop(): Promise<void> {
+  // Don't use setTimeout because Chrome throttles it in some cases causing very long agent execution:
+  // https://stackoverflow.com/a/6032591/1118709
+  // https://github.com/chromium/chromium/commit/0295dd09496330f3a9103ef7e543fa9b6050409b
+  // Reusing a MessageChannel object gives no noticeable benefits
+  return new Promise((resolve) => {
+    const channel = new MessageChannel()
+    channel.port1.onmessage = () => resolve()
+    channel.port2.postMessage(null)
+  })
+}
+
 export function requestIdleCallbackIfAvailable(fallbackTimeout: number, deadlineTimeout = Infinity): Promise<void> {
   const { requestIdleCallback } = window
   if (requestIdleCallback) {
@@ -17,7 +32,7 @@ export function requestIdleCallbackIfAvailable(fallbackTimeout: number, deadline
 }
 
 export function isPromise<T>(value: PromiseLike<T> | unknown): value is PromiseLike<T> {
-  return value && typeof (value as PromiseLike<T>).then === 'function'
+  return !!value && typeof (value as PromiseLike<T>).then === 'function'
 }
 
 /**
@@ -57,21 +72,35 @@ export function awaitIfAsync<TResult, TError = unknown>(
  * (e.g. completing a network request, rendering the page) won't be able to happen.
  * This function allows running many synchronous tasks such way that asynchronous tasks can run too in background.
  */
-export async function forEachWithBreaks<T>(
+export async function mapWithBreaks<T, U>(
   items: readonly T[],
-  callback: (item: T, index: number) => unknown,
+  callback: (item: T, index: number) => U,
   loopReleaseInterval = 16,
-): Promise<void> {
+): Promise<U[]> {
+  const results = Array<U>(items.length)
   let lastLoopReleaseTime = Date.now()
 
   for (let i = 0; i < items.length; ++i) {
-    callback(items[i], i)
+    results[i] = callback(items[i], i)
 
     const now = Date.now()
     if (now >= lastLoopReleaseTime + loopReleaseInterval) {
       lastLoopReleaseTime = now
-      // Allows asynchronous actions and microtasks to happen
-      await wait(0)
+      await releaseEventLoop()
     }
   }
+
+  return results
+}
+
+/**
+ * Makes the given promise never emit an unhandled promise rejection console warning.
+ * The promise will still pass errors to the next promises.
+ * Returns the input promise for convenience.
+ *
+ * Otherwise, promise emits a console warning unless it has a `catch` listener.
+ */
+export function suppressUnhandledRejectionWarning<T extends PromiseLike<unknown>>(promise: T): T {
+  promise.then(undefined, () => undefined)
+  return promise
 }

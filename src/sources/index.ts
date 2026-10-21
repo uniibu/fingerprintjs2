@@ -1,56 +1,71 @@
 import { loadSources, SourcesToComponents } from '../utils/entropy_source'
+
+import getApplePayState from './apple_pay'
+import getArchitecture from './architecture'
 import getAudioFingerprint from './audio'
-import getFonts from './fonts'
-import getPlugins from './plugins'
+import getAudioContextBaseLatency from './audio_base_latency'
 import getCanvasFingerprint from './canvas'
-import getTouchSupport from './touch_support'
-import getOsCpu from './os_cpu'
-import getLanguages from './languages'
 import getColorDepth from './color_depth'
-import getDeviceMemory from './device_memory'
-import getScreenResolution from './screen_resolution'
-import { getRoundedScreenFrame } from './screen_frame'
-import getHardwareConcurrency from './hardware_concurrency'
-import getTimezone from './timezone'
-import getSessionStorage from './session_storage'
-import getLocalStorage from './local_storage'
-import getIndexedDB from './indexed_db'
-import getOpenDatabase from './open_database'
+import getColorGamut from './color_gamut'
+import getContrastPreference from './contrast'
+import areCookiesEnabled from './cookies_enabled'
 import getCpuClass from './cpu_class'
+import getDateTimeLocale from './date_time_locale'
+import getDeviceMemory from './device_memory'
+import getDomBlockers from './dom_blockers'
+import getFontPreferences from './font_preferences'
+import getFonts from './fonts'
+import areColorsForced from './forced_colors'
+import getHardwareConcurrency from './hardware_concurrency'
+import isHDR from './hdr'
+import getIndexedDB from './indexed_db'
+import areColorsInverted from './inverted_colors'
+import getLanguages from './languages'
+import getLocalStorage from './local_storage'
+import getMathFingerprint from './math'
+import getMonochromeDepth from './monochrome'
+import getOpenDatabase from './open_database'
+import getOsCpu from './os_cpu'
+import isPdfViewerEnabled from './pdf_viewer_enabled'
 import getPlatform from './platform'
+import getPlugins from './plugins'
+import getPrivateClickMeasurement from './private_click_measurement'
+import isMotionReduced from './reduced_motion'
+import isTransparencyReduced from './reduced_transparency'
+import getScreenFrame from './screen_frame'
+import getScreenResolution from './screen_resolution'
+import getSessionStorage from './session_storage'
+import getTimezone from './timezone'
+import getTouchSupport from './touch_support'
+import getUserAgentData from './user_agent_data'
 import getVendor from './vendor'
 import getVendorFlavors from './vendor_flavors'
-import areCookiesEnabled from './cookies_enabled'
-import getDomBlockers from './dom_blockers'
-import getColorGamut from './color_gamut'
-import areColorsInverted from './inverted_colors'
-import areColorsForced from './forced_colors'
-import getMonochromeDepth from './monochrome'
-import getContrastPreference from './contrast'
-import isMotionReduced from './reduced_motion'
-import isHDR from './hdr'
-import getMathFingerprint from './math'
-import getFontPreferences from './font_preferences'
+import { getWebGlBasics, getWebGlExtensions } from './webgl'
 
 /**
  * The list of entropy sources used to make visitor identifiers.
  *
  * This value isn't restricted by Semantic Versioning, i.e. it may be changed without bumping minor or major version of
  * this package.
+ *
+ * Note: Rollup and Webpack are smart enough to remove unused properties of this object during tree-shaking, so there is
+ * no need to export the sources individually.
  */
 export const sources = {
   // READ FIRST:
-  // See https://github.com/fingerprintjs/fingerprintjs/blob/master/contributing.md#how-to-make-an-entropy-source
+  // See https://github.com/fingerprintjs/fingerprintjs/blob/master/contributing.md#how-to-add-an-entropy-source
   // to learn how entropy source works and how to make your own.
 
   // The sources run in this exact order.
   // The asynchronous sources are at the start to run in parallel with other sources.
+  userAgentData: getUserAgentData,
   fonts: getFonts,
   domBlockers: getDomBlockers,
   fontPreferences: getFontPreferences,
   audio: getAudioFingerprint,
-  screenFrame: getRoundedScreenFrame,
+  screenFrame: getScreenFrame,
 
+  canvas: getCanvasFingerprint,
   osCpu: getOsCpu,
   languages: getLanguages,
   colorDepth: getColorDepth,
@@ -65,7 +80,6 @@ export const sources = {
   cpuClass: getCpuClass,
   platform: getPlatform,
   plugins: getPlugins,
-  canvas: getCanvasFingerprint,
   touchSupport: getTouchSupport,
   vendor: getVendor,
   vendorFlavors: getVendorFlavors,
@@ -76,8 +90,20 @@ export const sources = {
   monochrome: getMonochromeDepth,
   contrast: getContrastPreference,
   reducedMotion: isMotionReduced,
+  reducedTransparency: isTransparencyReduced,
   hdr: isHDR,
   math: getMathFingerprint,
+  pdfViewerEnabled: isPdfViewerEnabled,
+  architecture: getArchitecture,
+  applePay: getApplePayState,
+  privateClickMeasurement: getPrivateClickMeasurement,
+  audioBaseLatency: getAudioContextBaseLatency,
+  dateTimeLocale: getDateTimeLocale,
+
+  // Some sources can affect other sources (e.g. WebGL can affect canvas), so it's important to run these sources
+  // after other sources.
+  webGlBasics: getWebGlBasics,
+  webGlExtensions: getWebGlExtensions,
 }
 
 /**
@@ -92,6 +118,7 @@ export type BuiltinComponents = SourcesToComponents<typeof sources>
 
 export interface BuiltinSourceOptions {
   debug?: boolean
+  cache: Record<string, unknown>
 }
 
 /**
